@@ -31,12 +31,16 @@ app.get("/auth", function(req, res){
 
 
 app.all("/webhooks", function(req, res) {
-    
+
   res.setHeader('Content-Type', 'text')
+  if(req.body.action === undefined) {
+    res.end()
+    return
+  }
+  
   var type = req.body.action.type
 
-console.log(req.body.action.data.card)
-  if(type == "updateCard" || type == "createCard")
+  if(type == "updateCard" || type == "createCard" || type == "addAttachmentToCard")
     handleCreateUpdateCard(req)
   res.end()
   
@@ -46,71 +50,66 @@ console.log(req.body.action.data.card)
 
 
 function handleCreateUpdateCard(req){
-  console.log("Got webhook call")
-  handleGlobalBoardAction(req)
   
+  handleGlobalBoardAction(req)
+  .then(function(){
+    handleSingleCardAction(req)
+  })
   
 }
 
 function handleSingleCardAction(req){
   //checks if a card has a link pointing to a board, if so look for template lists
+  
+  
+  var action = req.body.action
+  var data = action.data
+  var card = data.card
+  var destBoardName = data.board.name
+  return getAttachmentURLs(card)
+  .then(function(urls){
+    return getBoardIdFromURLs(urls)
+    
+  }).then(function(boardId){
+    return getListIdFromListName(boardId, destBoardName) 
+
+  }).then(function(sourceListId){
+    return syncChecklistFromBoard(action, sourceListId)
+    
+  }).catch(function(err){
+    console.log(err)
+  })
+
 }
+
+
+
 
 
 function handleGlobalBoardAction(req){
   var action = req.body.action
   var boardId = req.query.templateBoardId
   var data = action.data
-  
-  var destBoardName = data.board.name
-  if (action.type == 'createCard' && typeof(data.list) !== 'undefined')
-    var destListName = data.list.name
-    
-  else if(action.type == 'updateCard' && typeof(data.listAfter) !== 'undefined')
-    var destListName = data.listAfter.name
-  
-  else {
-    console.error("List name not found")
-    return;
-  }
- 
-    
+
+
   var destCardId = data.card.id
-  console.log(destBoardName, destListName, destCardId)
+  var destBoardName = data.board.name
     
-  getListIdFromListName(boardId, destBoardName) 
+  return getListIdFromListName(boardId, destBoardName) 
   .then(function(sourceListId){
-    //console.log("sourceList", sourceListId)
-    return getCardIdFromCardName(sourceListId, destListName)
+ 
+    return syncChecklistFromBoard(action, sourceListId)
     
   })
-  .then(function(sourceCardId){
-    //console.log("sourceCard", sourceCardId)
 
-    return [
-        getChecklistsList(sourceCardId),
-        getChecklistsList(destCardId)
-    ]
-          
-  })
-  .spread(function(sourceChecklistsList, destChecklistsList){
-    var destChecklistsNames = _.pluck(destChecklistsList, 'name')
-    sourceChecklistsList.forEach(function(checklist){
-
-      if(destChecklistsNames.indexOf(checklist.name) === -1)
-        
-        copyChecklist(checklist.id, data.card.id)
-    })
-
-  })
 }
 
 
 function syncChecklistFromBoard(action, sourceListId) {
   var data = action.data
-  var destBoardName = data.board.name
   var destCardId = data.card.id
-  if (action.type == 'createCard' && typeof(data.list) !== 'undefined')
+  
+  if (typeof(data.list) !== 'undefined')
     var destListName = data.list.name
     
   else if(action.type == 'updateCard' && typeof(data.listAfter) !== 'undefined')
@@ -120,28 +119,29 @@ function syncChecklistFromBoard(action, sourceListId) {
     console.error("List name not found")
     return;
   }
+
   
   return getCardIdFromCardName(sourceListId, destListName)
-    
   
-  .then(function(sourceCardId){
-    //console.log("sourceCard", sourceCardId)
-
+  .then(function(sourceCardId){ 
     return [
         getChecklistsList(sourceCardId),
         getChecklistsList(destCardId)
-    ]
-          
+    ]       
   })
+  
   .spread(function(sourceChecklistsList, destChecklistsList){
     var destChecklistsNames = _.pluck(destChecklistsList, 'name')
+    
     sourceChecklistsList.forEach(function(checklist){
-
       if(destChecklistsNames.indexOf(checklist.name) === -1)
-        
         copyChecklist(checklist.id, data.card.id)
     })
-
+    
+  })
+  
+  .catch(function(e){
+    console.log(e)
   })
   
   
@@ -151,30 +151,39 @@ function syncChecklistFromBoard(action, sourceListId) {
 
 function copyChecklist(idChecklistSource, destCard){
   console.log("Copying ", idChecklistSource, "to ", destCard)
-  return new Promise(function(resolve){
+  
+  return new Promise(function(resolve, reject){  
     t.post("/1/checklists/", {idChecklistSource : idChecklistSource, idCard : destCard }, function(err, data){
+      if(err) return reject(err)
       resolve()
     })
+    
   })
 }
 
 function getListIdFromListName(boardId, listName){
-  return new Promise(function(resolve){  
+  return new Promise(function(resolve, reject){  
+    if(boardId === undefined) return reject('boardId not found')
     var listId;
+    
     t.get("/1/boards/"+boardId+"/lists/", function(err, lists){  
+      if(err) return reject(err)
+      
       lists.forEach(function(list){  
         if(list.name == listName)
           listId = list.id       
-      })  
+      })
+      
       resolve(listId)     
     }) 
+    
   })
 }
 
 
 function getCardIdFromCardName(listId, cardName){
-  return new Promise(function(resolve){
-    
+  return new Promise(function(resolve, reject){
+    if(listId === undefined) return reject('list not found')
     var cardId;
     
     t.get("/1/lists/"+listId+"/cards/", function(err, cards){  
@@ -182,7 +191,8 @@ function getCardIdFromCardName(listId, cardName){
         if(card.name == cardName)
           cardId = card.id
       }) 
-
+      if(cardId === undefined) 
+        return reject("card " + cardName + " not found in list " + listId)
       resolve(cardId)     
     }) 
   })
@@ -190,14 +200,40 @@ function getCardIdFromCardName(listId, cardName){
 
 
 function getChecklistsList(cardId){
-  return new Promise(function(resolve){
+  return new Promise(function(resolve, reject){
     t.get("/1/cards/"+cardId+"/checklists", function(err, checklists){
+      if(err) 
+        return reject(err)
       resolve(checklists)
       
     })
   
   })
 }
+
+
+
+function getBoardIdFromURLs(urls){
+  var re = new RegExp("https://trello.com/b/(.*?)/")
+
+  for (var url of urls){
+    var board = re.exec(url)
+    if(board !== null)
+      return board[1]   
+  }  
+}
+
+function getAttachmentURLs(card){
+
+  return new Promise(function(resolve, reject){
+    t.get("/1/cards/"+card.id+"/attachments", {fields : 'url' }, function(err, attachments){   
+      if(err) return reject(err)
+      resolve(_.pluck(attachments, 'url'))  
+    })
+  })
+ 
+}
+
 
 
 

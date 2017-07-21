@@ -5,7 +5,13 @@ $(document).ready(function(){
   var status = document.getElementById('status')
   
   function createWebhooks(){
-  
+  getWebhooks(function(webhooks){
+    console.log(webhooks)
+  })
+    
+
+    
+    
     console.log("create")
       Trello.rest("POST", "webhooks", 
                   
@@ -16,13 +22,13 @@ $(document).ready(function(){
               function(){ 
                 p.innerHTML+="Webhook creation : OK"
                 status.innerHTML="ok"
-                closeTab();
+                //closeTab();
               },
               function(){ 
                 p.innerHTML+="Webhook creation : Error (this webhook might already exist)"
                 status.innerHTML="ko"
                 console.log("error")  
-                closeTab();
+                //closeTab();
   });
   }
   
