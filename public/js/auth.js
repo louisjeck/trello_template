@@ -8,27 +8,25 @@ $(document).ready(function(){
   getWebhooks(function(webhooks){
     console.log(webhooks)
   })
-    
 
-    
-    
     console.log("create")
+
       Trello.rest("POST", "webhooks", 
                   
               {'idModel': model, 
-               'description' : "AirTable webhook", 
-               'callbackURL' : "https://living-slash.glitch.me/webhooks?templateBoardId="+templateBoardId
+               'description' : "Checkbox Template", 
+               'callbackURL' : "https://living-slash.glitch.me/webhooks?templateBoardId="+templateBoardId+"&token="+Trello.token()
               }, 
               function(){ 
                 p.innerHTML+="Webhook creation : OK"
                 status.innerHTML="ok"
-                //closeTab();
+                closeTab();
               },
               function(){ 
                 p.innerHTML+="Webhook creation : Error (this webhook might already exist)"
                 status.innerHTML="ko"
                 console.log("error")  
-                //closeTab();
+                closeTab();
   });
   }
   
@@ -80,11 +78,11 @@ function closeTab(){
   
   
   Trello.authorize({
-    type: 'redirect',
-    name: 'Getting Started Application',
+    type: 'popup',
+    name: 'Trello Template',
     scope: {
-      read: 'true',
-      write: 'true' },
+      read: 'allowRead',
+      write: 'allowWrite' },
     expiration: 'never',
     success: authenticationSuccess,
     error: authenticationFailure

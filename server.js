@@ -9,7 +9,9 @@ var bodyParser = require('body-parser');
 var request = require('request');
 var Trello = require('node-trello');
 var Promise = require('bluebird')
-var t = new Trello('910aeb0b23c2e63299f8fb460f9bda36', '556ac2c96944fc52ad432c56f944445b0a7682528398e638cf89339f0b13a971')
+//var t = new Trello('910aeb0b23c2e63299f8fb460f9bda36', '556ac2c96944fc52ad432c56f944445b0a7682528398e638cf89339f0b13a971')
+
+
 // https://trello.com/1/connect?key=910aeb0b23c2e63299f8fb460f9bda36&name=Trello+Template&response_type=token&expiration=never&scope=read,write
 var _ = require('underscore')
 // compress our client side content before sending it over the wire
@@ -29,6 +31,7 @@ app.get("/auth", function(req, res){
 });
 
 
+var t
 
 app.all("/webhooks", function(req, res) {
 
@@ -50,7 +53,9 @@ app.all("/webhooks", function(req, res) {
 
 
 function handleCreateUpdateCard(req){
-  
+  console.log('token', req.query.token)
+  t = new Trello('910aeb0b23c2e63299f8fb460f9bda36', req.query.token) //req.query.token)
+
   handleGlobalBoardAction(req)
   .then(function(){
     handleSingleCardAction(req)
