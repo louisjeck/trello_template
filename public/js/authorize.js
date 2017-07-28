@@ -7,10 +7,10 @@ var t = TrelloPowerUp.iframe();
 var templateBoardId_input = document.getElementById('templateBoardId');
 var templateListName_input = document.getElementById('templateListName');
 
-var statusTextSpan = document.getElementById('statusText');
+
 var authDiv = document.getElementById('auth');
 var authNode = document.getElementById('authNode');
-var deauth = document.getElementById('deauth');
+var unlink = document.getElementById('unlink');
 
 t.render(function(){
   t.organization('boards').then(function(r) { console.log(r) })
@@ -19,27 +19,52 @@ t.render(function(){
     t.board('id').get('id'),
   ])
   .spread(function(template, model){
-    deauth.href="https://living-slash.glitch.me/auth?model="+model+"#deauth";
 
     if(template){
       templateBoardId_input.value = template.boardId;
       templateListName_input.value = template.listName
+
     }
   })
   .then(function(){
     
     t.sizeTo('#content')
-    .done();
+
   })
 });
 
+function done(token){
+  console.log('token', token)
+  Promise.all([
+  t.board('id').get('id'),
+  t.member('fullName', 'id')
+  ])
+  .spread(function(boardId, member){
+
+  t.set('board', 'shared', 'auth', {
+       member : member,
+       boardId : boardId
+  });
+    
+
+})
+}
 
 
+function clean(){
+  console.log('clean')
+  t.remove('board', 'shared', 'auth')
+}
 
+unlink.addEventListener('click', function(e){
+  t.board('id').get('id')
+  .then(function(boardId){
+    window.open("https://living-slash.glitch.me/auth?model="+boardId+"#deauth")
+  })
+})
 
-
-document.getElementById('save').addEventListener('click', function(){
-  
+authNode.addEventListener('click', function(e){
+  e.preventDefault();
 
   return t.set('board', 'shared', 'template', {
     boardId : templateBoardId_input.value,
@@ -53,10 +78,7 @@ document.getElementById('save').addEventListener('click', function(){
       
   })
   .spread(function(model, template){
-    console.log("hello")
-    authNode.style.display = "block";
-
-    authNode.href="https://living-slash.glitch.me/auth?template_board_id="+template.boardId+"&template_list_name="+template.listName+"&model="+model;
+    window.open("https://living-slash.glitch.me/auth?template_board_id="+template.boardId+"&template_list_name="+template.listName+"&model="+model, '_blank')
     t.sizeTo('#content')
     })
 

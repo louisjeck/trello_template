@@ -8,23 +8,19 @@
     <div id="content">
       <div id="auth">
        
-        <p>Trello Template Board ID</p>
+        <p>Template Board Id</p>
         <input type="text" id="templateBoardId">
 
-        <p>Trello Template Name</p>
+        <p>Template List Name</p>
         <input type="text" id="templateListName">
-
-
-        
-        <button id="save" class="mod-primary">Save</button>
       
       </div>
+  <div style="display:inline">
+    
 
-      
-
-      <p id="statusText"></p>
-      <a href="#" id="authNode" target="_blank" style="display:none" ><button class="mod-primary">Authorize NodeJS</button></a>
-      <a href="#" id="deauth" target="_blank"><button id="delete" class="mod-danger">Deauthorize</button></a>
+      <button class="mod-primary" id="authNode">Authorize</button>
+      <button class="mod-danger" id="unlink">Disable</button>
+      </div>
     </div>
     <script src="./js/authorize.js"></script>
   </body>

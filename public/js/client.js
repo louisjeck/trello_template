@@ -78,20 +78,18 @@ TrelloPowerUp.initialize({
         // throw t.NotHandled();
     },
     'authorization-status': function (t) {
-        return new TrelloPowerUp.Promise((resolve) =>
+        return Promise.all([
+            t.board('id').get('id'),
+            t.get('board', 'shared', 'auth')
+          ])
+          .spread(function (boardId, auth) {
+          
+            if(auth !== undefined &&  boardId == auth.boardId)
+              return { authorized: true }
+            return { authorized: false };
 
-            t.get('board', 'shared', 'credentials')
-                .then(function (credentials) {
-                    if (credentials) {
-                        console.log(credentials)
-                        resolve({authorized: true})
-                    }
-                    else {
-                        resolve({authorized: false})
-                    }
-
-                })
-        )
+          })
+        
     },
     'show-authorization': function (t, options) {
         // return what to do when a user clicks the 'Authorize Account' link
@@ -108,13 +106,28 @@ TrelloPowerUp.initialize({
         // when a user clicks the gear icon by your Power-Up in the Power-Ups menu
         // what should Trello show. We highly recommend the popup in this case as
         // it is the least disruptive, and fits in well with the rest of Trello's UX
-        return t.popup({
+      
+      return Promise.all([
+        t.get('board', 'shared', 'auth').get('member').get('id'),
+        t.member('id').get('id')
+        ])
+      .spread(function(memberStoredId, memberId){
+        if(memberStoredId == memberId)
+          return t.popup({
+            title: 'Settings',
+            url: './authorize.html',
+            height: 250, // we can always resize later, but if we know the size in advance, its good to tell Trello
+          });
+        
+          return t.popup({
             title: 'Settings',
             url: './settings.html',
             height: 250, // we can always resize later, but if we know the size in advance, its good to tell Trello
         });
+    })
     }
-});
+})
+
 
 console.log('Loaded by: ' + document.referrer);
   
