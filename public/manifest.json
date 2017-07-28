@@ -1,10 +1,10 @@
 {
-  "name": "Checklists",
-  "details":"The Checklist Template Power-Up allows you to assign checlists templates to cards and board",
+  "name": "Checklist Template",
+  "details":"The Checklist Template Power-Up allows you to assign templates to a board and automatically add checklists to cards added or moved in the board. Powered by OCTO Technology (LJE & CDU)",
   "icon": {
-    "url": "https://cdn.glitch.com/9aebe639-1af4-4ed8-9467-a054ae8cdf2b%2FPonctuation%20OK_pos.png?1500644522612"
+    "url": "https://cdn.glitch.com/9aebe639-1af4-4ed8-9467-a054ae8cdf2b%2FOcto.png?1501074594739"
   },
-  "author": "Trello Inc",
+  "author": "OCTO Technology (LJE & CDU)",
   "capabilities": [
     "authorization-status",
     "attachment-sections",

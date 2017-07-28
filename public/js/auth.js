@@ -4,10 +4,30 @@ $(document).ready(function(){
   var p = document.getElementById('p');
   var status = document.getElementById('status')
   
-  function createWebhooks(){
-  getWebhooks(function(webhooks){
+  function clearWebhooks(){
+    return   getWebhooks()
+  .then(function(webhooks){
     console.log(webhooks)
+    var pro = [];
+    webhooks.forEach(function(webhook){
+      console.log(webhook.idModel,"->" , model, webhook.callbackURL.substr(0,30))
+      if(webhook.idModel == model && webhook.callbackURL.substr(0,30) == "https://living-slash.glitch.me")
+      pro.push(deleteWebhook(webhook))   
+    })//foreach
+    return pro
   })
+    .then(function(pro){
+    console.log(pro)
+    return Promise.all(pro)
+  })
+    
+  }
+  
+  function createWebhooks(){
+
+  clearWebhooks()
+
+    .then(function(){
 
     console.log("create")
 
@@ -15,7 +35,7 @@ $(document).ready(function(){
                   
               {'idModel': model, 
                'description' : "Checkbox Template", 
-               'callbackURL' : "https://living-slash.glitch.me/webhooks?templateBoardId="+templateBoardId+"&token="+Trello.token()
+               'callbackURL' : "https://living-slash.glitch.me/webhooks?templateBoardId="+templateBoardId+"&templateListName="+templateListName+"&token="+Trello.token()
               }, 
               function(){ 
                 p.innerHTML+="Webhook creation : OK"
@@ -27,15 +47,26 @@ $(document).ready(function(){
                 status.innerHTML="ko"
                 console.log("error")  
                 closeTab();
-  });
+      });
+      
+    })
   }
   
-  function deleteWebhook(webhook, callback){
-    return Trello.rest("DELETE", "webhooks/"+webhook.id, callback)
+  function deleteWebhook(webhook){
+    return new Promise(function(resolve){
+      Trello.rest("DELETE", "webhooks/"+webhook.id, function(){
+        p.innerHTML+="Webhook "+webhook.id+" successfully deleted<br>"
+        resolve();
+      })
+    })
   }
   
   function getWebhooks(callback){
-    return Trello.rest("GET", "tokens/"+Trello.token()+"/webhooks", callback)
+    return new Promise(function(resolve){
+      Trello.rest("GET", "tokens/"+Trello.token()+"/webhooks", function(data){
+        resolve(data)
+      })
+    })
   }
   
   function deleteWebhooks(){
@@ -54,8 +85,12 @@ $(document).ready(function(){
   var authenticationSuccess = function() { 
     console.log('Successful authentication'); 
     p.innerHTML += "Trello authentication : OK<br>"
-    if(window.location.hash == "#deauth")
-      deleteWebhooks();
+    
+    if(window.location.hash.substr(0,7) == "#deauth"){
+      clearWebhooks();
+      closeTab();
+    }
+      
     else
       createWebhooks();
 
@@ -71,14 +106,14 @@ function closeTab(){
   setTimeout(function(){
       close();
 
-  }, 2000)
+  }, 4000)
 }
 
 
   
   
   Trello.authorize({
-    type: 'popup',
+    type: 'redirect',
     name: 'Trello Template',
     scope: {
       read: 'allowRead',

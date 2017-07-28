@@ -9,10 +9,7 @@ var bodyParser = require('body-parser');
 var request = require('request');
 var Trello = require('node-trello');
 var Promise = require('bluebird')
-//var t = new Trello('910aeb0b23c2e63299f8fb460f9bda36', '556ac2c96944fc52ad432c56f944445b0a7682528398e638cf89339f0b13a971')
 
-
-// https://trello.com/1/connect?key=910aeb0b23c2e63299f8fb460f9bda36&name=Trello+Template&response_type=token&expiration=never&scope=read,write
 var _ = require('underscore')
 // compress our client side content before sending it over the wire
 app.use(compression());
@@ -27,24 +24,45 @@ app.use(express.static('public'));
 app.engine('.html', require('ejs').renderFile);
 app.get("/auth", function(req, res){
     
-    res.render("auth.html", { templateBoardId: req.query.template_board_id, webhookModel : req.query.model });
+    res.render("auth.html", { templateBoardId: req.query.template_board_id, templateListName: req.query.template_list_name, webhookModel : req.query.model });
 });
 
 
 var t
 
+
+function deleteWebhook(res){
+  console.log('Refused webhook')
+  res.status(410);
+  res.end();
+  return true;
+}
+
+function checkDisableWebhook(req, res){
+  var action = req.body.action;
+  if (action.type == "disablePlugin" && action.data.plugin.url == "https://"+req.headers.host+"/manifest.json")
+    return deleteWebhook(res)
+  return false
+  
+}
+
 app.all("/webhooks", function(req, res) {
 
+  
   res.setHeader('Content-Type', 'text')
   if(req.body.action === undefined) {
     res.end()
     return
   }
-  
-  var type = req.body.action.type
-
-  if(type == "updateCard" || type == "createCard" || type == "addAttachmentToCard")
+  if(checkDisableWebhook(req, res))
+    return;
+  var type = req.body.action.display.translationKey
+  //console.log(req.body.action)
+  if(type == "action_move_card_from_list_to_list" || type == "action_create_card" || type == "action_add_attachment_to_card"){
+    console.log('-------------------------')
+    console.log('type handle : ', type)
     handleCreateUpdateCard(req)
+  }
   res.end()
   
   
@@ -65,7 +83,7 @@ function handleCreateUpdateCard(req){
 
 function handleSingleCardAction(req){
   //checks if a card has a link pointing to a board, if so look for template lists
-  
+  console.log('single card')
   
   var action = req.body.action
   var data = action.data
@@ -94,15 +112,17 @@ function handleSingleCardAction(req){
 function handleGlobalBoardAction(req){
   var action = req.body.action
   var boardId = req.query.templateBoardId
+  var listName = req.query.templateListName
   var data = action.data
 
 
   var destCardId = data.card.id
-  var destBoardName = data.board.name
-    
-  return getListIdFromListName(boardId, destBoardName) 
+  var sourceListName = listName == '' ? data.board.name : listName
+  var boardId = boardId == '' ? data.board.id : boardId
+  
+  return getListIdFromListName(boardId, sourceListName)
+  
   .then(function(sourceListId){
- 
     return syncChecklistFromBoard(action, sourceListId)
     
   })
@@ -129,15 +149,14 @@ function syncChecklistFromBoard(action, sourceListId) {
   return getCardIdFromCardName(sourceListId, destListName)
   
   .then(function(sourceCardId){ 
-    return [
+    return Promise.all([
         getChecklistsList(sourceCardId),
         getChecklistsList(destCardId)
-    ]       
+    ])     
   })
   
   .spread(function(sourceChecklistsList, destChecklistsList){
     var destChecklistsNames = _.pluck(destChecklistsList, 'name')
-    
     sourceChecklistsList.forEach(function(checklist){
       if(destChecklistsNames.indexOf(checklist.name) === -1)
         copyChecklist(checklist.id, data.card.id)
@@ -158,7 +177,7 @@ function copyChecklist(idChecklistSource, destCard){
   console.log("Copying ", idChecklistSource, "to ", destCard)
   
   return new Promise(function(resolve, reject){  
-    t.post("/1/checklists/", {idChecklistSource : idChecklistSource, idCard : destCard }, function(err, data){
+    t.post("/1/checklists/", {idChecklistSource : idChecklistSource, idCard : destCard, pos : 'top' }, function(err, data){
       if(err) return reject(err)
       resolve()
     })
@@ -178,7 +197,7 @@ function getListIdFromListName(boardId, listName){
         if(list.name == listName)
           listId = list.id       
       })
-      
+      console.log('resolve getListId')
       resolve(listId)     
     }) 
     
@@ -248,62 +267,3 @@ var listener = app.listen(process.env.PORT, function () {
   console.log('Trello Power-Up Server listening on port ' + listener.address().port);
 });
 
-
-
-
-
-
-
-
-
-
-//***** TRELLO WEBHOOKS MGMT *****//
-
-
-// Start the request
-function createWebhook(model){
-
-  var headers = {
-      'Content-Type':     'application/x-www-form-urlencoded'
-  }
-
-  // Configure the request
-  var options = {
-      url: "https://api.trello.com/1/tokens/"+TRELLO_USER_TOKEN+"/webhooks/?key="+TRELLO_APPLICATION_KEY,
-      method: 'POST',
-      headers: headers,
-      form: {'idModel': model, 'description' : "AirTable webhook", 'callbackURL' : "https://hypnotic-bay.glitch.me/webhooks"}
-  }
-  request(options, function (error, response, body) {
-      if (!error && response.statusCode == 200) {
-          // Print out the response body
-          console.log(body)
-      }
-    else console.log(body)
-  })
-
-}
-
-
-function deleteWebhook(webhook){
-  
-    var headers = {
-      'Content-Type':     'application/x-www-form-urlencoded'
-  }
-
-  // Configure the request
-  var options = {
-      url: "https://api.trello.com/1/tokens/"+""+"/webhooks/"+webhook+"?key="+"",
-      method: 'DELETE',
-      headers: headers,
-  }
-  request(options, function (error, response, body) {
-      if (!error && response.statusCode == 200) {
-          // Print out the response body
-        console.log("ok")
-          console.log(body)
-      }
-    else console.log(body)
-  })
-  
-}
