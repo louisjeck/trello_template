@@ -14,6 +14,8 @@ TrelloPowerUp.initialize({
         // you can look through them and 'claim' any that you want to
         // include in your section.
 
+      
+      
         // we will just claim urls for Yellowstone
         var claimed = options.entries.filter(function (attachment) {
             return attachment.url.indexOf('http://www.nps.gov/yell/') === 0;
@@ -97,7 +99,7 @@ TrelloPowerUp.initialize({
         // returns { authorized: false }
         // in this case we would open a popup
         return t.popup({
-            title: 'Authozire AirTable',
+            title: 'Authorize Checklist Template',
             url: './authorize.html', // this page doesn't exist in this project but is just a normal page like settings.html
             height: 250,
         });

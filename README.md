@@ -1,4 +1,4 @@
-# Template Trello Power-Up
+# Template Trello Power-Up by LJE
 
 ## Description
 
